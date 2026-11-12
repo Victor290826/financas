@@ -1,5 +1,44 @@
-// sw.js - Escuta notificações Push em segundo plano
+const CACHE_NAME = 'financas-app-v1';
+const ARQUIVOS_CACHE = [
+    './',
+    './index.html',
+    './style.css',
+    './index.js',
+    './manifest.json'
+];
 
+// Instala o app e salva os arquivos principais em cache
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.addAll(ARQUIVOS_CACHE);
+        })
+    );
+    self.skipWaiting();
+});
+
+// Limpa caches antigos ao atualizar o app
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys => {
+            return Promise.all(
+                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+            );
+        })
+    );
+    self.clients.claim();
+});
+
+// Permite abrir o app mesmo sem internet
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request))
+    );
+});
+
+// ==========================================
+// NOTIFICAÇÕES PUSH EM SEGUNDO PLANO
+// ==========================================
 self.addEventListener('push', function(event) {
     let payload = { title: '⏰ Bom dia!', body: 'Você tem compromissos agendados para hoje.' };
 
@@ -13,8 +52,8 @@ self.addEventListener('push', function(event) {
 
     const options = {
         body: payload.body,
-        icon: 'https://cdn-icons-png.flaticon.com/512/3119/3119338.png', // Substitua pelo ícone da sua app
-        badge: 'https://cdn-icons-png.flaticon.com/512/3119/3119338.png',
+        icon: './icon-192.png',
+        badge: './icon-192.png',
         vibrate: [200, 100, 200]
     };
 
@@ -23,18 +62,17 @@ self.addEventListener('push', function(event) {
     );
 });
 
-// Ao clicar na notificação, abre o aplicativo
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     event.waitUntil(
         clients.matchAll({ type: 'window' }).then(windowClients => {
             for (let client of windowClients) {
-                if (client.url === '/' && 'focus' in client) {
+                if (client.url.includes('index.html') && 'focus' in client) {
                     return client.focus();
                 }
             }
             if (clients.openWindow) {
-                return clients.openWindow('/');
+                return clients.openWindow('./index.html');
             }
         })
     );
